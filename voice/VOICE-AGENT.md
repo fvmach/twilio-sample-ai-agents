@@ -148,11 +148,7 @@ If the knowledge database has not been seeded, RAG returns `null` and is silentl
 When the caller speaks over the bot, Twilio sends an `interrupt` message. The server:
 
 1. Aborts the in-flight LLM stream (`session.abortController.abort()`)
-2. Sends an immediate ACK phrase to TTS (`interruptible: true`) so the call never goes silent:
- - Portuguese: "I'm listening!", "Go ahead!", "Sure, go ahead!"
- - English: "I'm listening!", "Go ahead!", "Sure, go ahead!"
- - Spanish: "¡Adelante!", "¡Te escucho!", "¡Dime!"
-3. Stores `utteranceUntilInterrupt` in `session.lastInterruptUtterance`
+2. Stores `utteranceUntilInterrupt` in `session.lastInterruptUtterance`
 
 On the next `prompt`, the stored utterance is injected as a system message so the LLM knows where it was interrupted and can acknowledge the topic shift naturally. The context is consumed and cleared after one use.
 
@@ -234,7 +230,7 @@ See [../knowledge/](../knowledge/) for ingestion instructions.
 
 ## Tools
 
-The agent has access to 9 tools. All except the two handover tools are implemented as direct API calls — no intermediate Twilio Function hop.
+The agent has access to 8 tools. All except the two handover tools are implemented as direct API calls — no intermediate Twilio Function hop.
 
 | Tool | Backend | Notes |
 |------|---------|-------|
@@ -243,7 +239,6 @@ The agent has access to 9 tools. All except the two handover tools are implement
 | `get_customer_profile` | Segment Profiles API (direct) | Pre-fetched on setup |
 | `get_last_segment_events` | Segment Events API (direct) | Pre-fetched on setup |
 | `get_stocks_data` | Alpha Vantage + Twelve Data fallback (direct) | Supports stocks, news, company-info, etf |
-| `pix_transfer (remove if not needed)` | — | Always rejected on voice — customer directed to app or chat |
 | `invest_money` | Twilio Sync (direct) | Confirm product and amount before calling |
 | `studio_handover` | Twilio Function | Credit card delivery — ends session after LLM speaks |
 | `flex_handover` | Twilio Function | Transfer to human agent — ends session after LLM speaks |
@@ -299,7 +294,6 @@ All logging is decoupled from the SPI critical path via an async queue (`setImme
 | LLM-generated interstitials | `gpt-4o-mini` fires at prompt receipt to produce a contextual filler phrase |
 | Pre-tool acknowledgement | LLM must speak before every tool call, so TTS starts before tool resolves |
 | Silence guard per iteration | Restarts after tool calls for coverage on subsequent LLM calls |
-| Interrupt ACK | Immediate TTS response on interrupt — no silent gap |
 | Prompt cache ordering | Static context first, dynamic last — prefix cached from turn 2 onwards |
 | `max_completion_tokens: 400` | Caps response length; signals expected output size to the API |
 | `parallel_tool_calls: true` | Explicit; LLM may emit multiple tool calls in one turn |
@@ -389,7 +383,7 @@ LLM timing logged at four points per iteration: `request` → `stream ready` (TT
 | Variable | Required | Default | Description |
 |----------|----------|---------|-------------|
 | `OPENAI_API_KEY` | Yes | — | OpenAI API key |
-| `OPENAI_MODEL` | — | `gpt-5-mini` | Chat completions model. Use `gpt-4o` for lowest latency |
+| `OPENAI_MODEL` | — | `gpt-4o` | Chat completions model. `gpt-4o` recommended for lowest voice latency |
 | `TWILIO_ACCOUNT_SID` | Yes | — | Twilio account SID |
 | `TWILIO_AUTH_TOKEN` | Yes | — | Twilio auth token |
 | `NGROK_DOMAIN` | — | — | Custom ngrok domain (auto-connects on start) |

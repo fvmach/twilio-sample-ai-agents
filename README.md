@@ -114,8 +114,8 @@ Optional variables are null-safe — the agent degrades gracefully if they are n
 
 ```bash
 # Clone and configure
-git clone <repo-url>
-cd <repo-dir>
+git clone https://github.com/fvmach/twilio-sample-ai-agents.git
+cd twilio-sample-ai-agents
 
 # Option A — interactive quickstart script
 bash scripts/quickstart.sh

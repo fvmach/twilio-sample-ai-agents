@@ -22,8 +22,8 @@ Segment, Twilio Sync, and the handover tools are optional. The agent works witho
 ## 1. Clone and configure
 
 ```bash
-git clone <repo-url>
-cd <repo-dir>
+git clone https://github.com/fvmach/twilio-sample-ai-agents.git
+cd twilio-sample-ai-agents
 ```
 
 ```bash
@@ -168,7 +168,6 @@ To watch the conversation in real-time, keep the server terminal open — all SP
 | Available tools | `voice/tools.js` → `TOOLS` array |
 | Tool implementations | `voice/tools.js` → `exec*` functions |
 | Investment product catalog | `voice/tools.js` → `INVESTMENT_PRODUCTS` |
-| Interrupt ACK phrases | `voice/server.js` → `INTERRUPT_ACKS` |
 | Long-wait interstitial phrases | `voice/server.js` → `LONG_WAIT_PHRASES` |
 | Knowledge sources | `knowledge/files/` and `knowledge/sources/` |
 | LLM model | `OPENAI_MODEL` in `.env` |

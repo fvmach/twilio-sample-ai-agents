@@ -63,7 +63,6 @@ All tools call external APIs directly from the voice server process — no inter
 | `get_customer_profile` | Segment Profiles API (`/traits`) |
 | `get_last_segment_events` | Segment Profiles API (`/events`) |
 | `get_stocks_data` | Alpha Vantage (primary) + Twelve Data (fallback) |
-| `pix_transfer` | Blocked — always rejected on voice |
 | `studio_handover` | Twilio Function (complex call routing logic) |
 | `flex_handover` | Twilio Function (TaskRouter interaction) |
 
@@ -164,9 +163,6 @@ prompt received
 When `interrupt` fires:
 1. `session.abortController.abort()` — LLM stream cancelled immediately
 2. `session.lastInterruptUtterance` set to `message.utteranceUntilInterrupt`
-3. An ACK phrase sent immediately to TTS (`interruptible: true`):
- - Language-aware (pt/en/es) based on `session.lastLang`
- - Examples: "Estou ouvindo!", "I'm listening!", "¡Adelante!"
 
 On the next `prompt`, the stored utterance is injected as a system message so the LLM acknowledges the topic shift at the start of its response. Consumed and cleared after one use.
 
@@ -288,7 +284,7 @@ Twilio STT finishes → prompt arrives at server (~0ms, network)
 The dominant variable is OpenAI TTFT, which depends heavily on model:
 - `gpt-4o` — ~1–2s TTFT (recommended for voice)
 - `gpt-4o-mini` — ~0.5–1.5s TTFT (for lowest latency, reduced quality)
-- o-series (`gpt-5-mini`, `o3-mini`) — ~7–9s TTFT (reasoning overhead — not ideal for voice)
+- o-series (`o3-mini`, `o4-mini`) — ~7–9s TTFT (reasoning overhead — not ideal for voice)
 
 ---
 
@@ -319,6 +315,5 @@ LLM timing is logged at four points per iteration:
 
 - `.env` is gitignored — never committed
 - `db/` (LanceDB data) is gitignored — rebuilt locally from source files
-- PIX transfers are rejected server-side in `executeTool` regardless of what the LLM decides — the tool definition also instructs the LLM never to call it on voice
 - Twilio Function endpoints are the only external write surfaces — authenticated by Twilio's own account context
 - Twilio Sync and Segment API calls use Basic auth over HTTPS — credentials from environment only

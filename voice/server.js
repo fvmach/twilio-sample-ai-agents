@@ -10,7 +10,7 @@ import { TOOLS, executeTool, normalizeIdentity, fetchConversationsContext, fetch
 
 const PORT         = parseInt(process.env.PORT || '8080');
 const NGROK_DOMAIN = process.env.NGROK_DOMAIN;
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-5-mini';
+const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
