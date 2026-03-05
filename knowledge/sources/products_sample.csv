@@ -1,0 +1,5 @@
+id,name,category,tagline,description,eligibility,pricing,agent
+PROD-001,Basic Plan,Subscription,Get started with the essentials,Our entry-level plan includes core features with email support. Ideal for individuals and small teams getting started.,Open to all customers,Free,all
+PROD-002,Standard Plan,Subscription,Everything you need day to day,The Standard plan includes all Basic features plus priority support and advanced analytics. Most popular choice for growing teams.,Open to all customers,$29 per month,all
+PROD-003,Pro Plan,Subscription,Maximum power for power users,Our Pro plan unlocks all features including dedicated support API access and custom integrations. Built for enterprises and high-volume users.,Business customers only,$99 per month,all
+PROD-004,Enterprise Plan,Subscription,Custom solutions for large organisations,A fully custom plan with tailored SLAs dedicated infrastructure and a named account manager. Contact sales for pricing.,Enterprise customers,Custom pricing,all

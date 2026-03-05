@@ -1,0 +1,28 @@
+{
+  "name": "conversationrelay-knowledge",
+  "version": "1.0.0",
+  "description": "Shared RAG knowledge module for AI agents",
+  "type": "module",
+  "exports": {
+    ".": "./src/search.js",
+    "./ingest": "./src/ingest/index.js"
+  },
+  "scripts": {
+    "ingest:files": "node src/ingest/index.js --source files",
+    "ingest:web": "node src/ingest/index.js --source web",
+    "ingest:all": "node src/ingest/index.js --source all",
+    "reset": "node src/ingest/index.js --source files --reset"
+  },
+  "dependencies": {
+    "@lancedb/lancedb": "^0.14.0",
+    "apache-arrow": "^17.0.0",
+    "axios": "^1.7.9",
+    "cheerio": "^1.0.0",
+    "dotenv": "^16.4.7",
+    "openai": "^4.85.4",
+    "robots-parser": "^3.0.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}

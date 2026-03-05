@@ -1,0 +1,41 @@
+Sample FAQs
+
+This is a sample FAQ file. Replace this content with your own FAQs.
+You can add as many questions and answers as you like.
+The ingest CLI will chunk and embed this file automatically.
+
+1. General
+
+What is this service?
+This is a sample AI-powered voice assistant. It can answer questions, look up account information, and help with common tasks.
+
+How do I get started?
+Simply call the number and speak naturally. The assistant understands conversational language and will guide you.
+
+What can the assistant help me with?
+The assistant can answer product questions, check account status, and connect you with a human agent if needed.
+
+Is my information secure?
+Yes. All calls are handled over encrypted connections and your data is never stored beyond the session.
+
+2. Account Services
+
+How do I check my account balance?
+Just ask "What's my balance?" and the assistant will look it up for you.
+
+How do I update my contact information?
+The assistant can help you update your phone number or email. You may need to verify your identity first.
+
+What happens if I forget my PIN?
+The assistant can guide you through the account recovery process or connect you with a human agent.
+
+3. Support
+
+How do I speak to a human?
+Say "I'd like to speak to a human" or "transfer me to an agent" at any time.
+
+What are your support hours?
+Our AI assistant is available 24 hours a day, 7 days a week. Human agents are available Monday through Friday, 9 AM to 6 PM.
+
+How do I report a problem?
+Tell the assistant about the issue and it will either resolve it directly or escalate to the appropriate team.

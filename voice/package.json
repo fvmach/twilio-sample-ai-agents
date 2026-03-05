@@ -1,0 +1,20 @@
+{
+  "name": "conversationrelay-voice",
+  "version": "1.0.0",
+  "description": "Twilio ConversationRelay WebSocket server for AI voice agents",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@ngrok/ngrok": "^1.4.1",
+    "dotenv": "^16.4.7",
+    "openai": "^4.85.4",
+    "ws": "^8.18.1"
+  },
+  "engines": {
+    "node": ">=20.0.0"
+  }
+}
