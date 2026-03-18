@@ -114,6 +114,24 @@ export const TOOLS = [
   {
     type: 'function',
     function: {
+      name: 'switch_language',
+      description: 'Switch the active conversation language for STT and TTS. Call this whenever the customer requests to speak in a different language, or when you decide to respond in a different language. Always call this AND respond in the new language in the same response.',
+      parameters: {
+        type: 'object',
+        properties: {
+          language: {
+            type: 'string',
+            enum: ['pt-BR', 'en-US', 'es-US'],
+            description: 'The BCP-47 language code to switch to.',
+          },
+        },
+        required: ['language'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
       name: 'get_last_segment_events',
       description: 'Retrieve the customer\'s recent activity events from Segment (page views, product interactions, purchases). Use to understand what the customer was doing in the app before calling, to personalise the conversation.',
       parameters: {

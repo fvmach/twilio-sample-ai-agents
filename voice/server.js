@@ -8,9 +8,10 @@ import { TOOLS, executeTool, normalizeIdentity, fetchConversationsContext, fetch
 
 // ─── Config ────────────────────────────────────────────────────────────────
 
-const PORT         = parseInt(process.env.PORT || '8080');
-const NGROK_DOMAIN = process.env.NGROK_DOMAIN;
-const OPENAI_MODEL = process.env.OPENAI_MODEL || 'gpt-4o';
+const PORT            = parseInt(process.env.PORT || '8080');
+const NGROK_DOMAIN    = process.env.NGROK_DOMAIN;
+const NGROK_AUTHTOKEN = process.env.NGROK_AUTHTOKEN;
+const OPENAI_MODEL    = process.env.OPENAI_MODEL || 'gpt-4o';
 
 const openai = new OpenAI({ apiKey: process.env.OPENAI_API_KEY });
 
@@ -70,6 +71,17 @@ function logInfo(msg)  { log(`${D}[${ts()}]${R} ${G}i${R}  ${msg}`); }
 function logError(msg) { log(`${D}[${ts()}]${R} ${RE}x${R}  ${msg}`); }
 function logWarn(msg)  { log(`${D}[${ts()}]${R} ${Y}!${R}  ${msg}`); }
 
+// ─── Language helpers ──────────────────────────────────────────────────────
+
+// Deepgram multi-mode returns only the primary BCP-47 tag (e.g. "pt", "en", "es").
+// Map those back to the full codes that match our <Language> elements in TwiML.
+const LANG_EXPAND = { pt: 'pt-BR', en: 'en-US', es: 'es-US' };
+
+function expandLang(lang) {
+  if (!lang || lang === 'multi') return null; // unknown / not yet detected
+  return LANG_EXPAND[lang] ?? lang;           // already full code (e.g. "pt-BR")
+}
+
 // ─── System prompt ─────────────────────────────────────────────────────────
 
 // ── Customise this prompt for your use case ────────────────────────────────
@@ -84,6 +96,9 @@ Guidelines for voice responses:
 - Spell out numbers and currency amounts in full words
 - Keep responses under 2 sentences for simple queries; up to 4 for complex ones
 - If you don't know something, say so and offer to connect them with a specialist
+
+Language:
+- When the customer asks to switch language, call switch_language AND respond in the new language in the same response — both must happen simultaneously, never sequentially
 
 Tool guidelines:
 - CRITICAL: When calling a tool, stream a brief spoken acknowledgement (1 sentence) AND call the tool in THE SAME response — both must happen together in one completion. Never produce a text-only response that says you "will" do something and then wait for the user to speak again. The spoken text and the tool call must be simultaneous.
@@ -102,12 +117,15 @@ class Session {
     this.history                = [];
     this.summary                = '';    // rolling transcript of compacted old turns
     this.hasMutated             = false; // true after any state-changing tool (invest, pix)
-    this.abortController        = null;
-    this.contextPromise         = null;
-    this.profilePromise         = null;
-    this.bankingPromise         = null;
-    this.lastInterruptUtterance = null;  // what the caller said when interrupting
-    this.lastLang               = 'pt-BR'; // most recent STT language tag
+    this.abortController            = null;
+    this.contextPromise             = null;
+    this.profilePromise             = null;
+    this.bankingPromise             = null;
+    this.interrupted                = false; // true from interrupt until next prompt starts
+    this.currentStreamTokens        = '';    // tokens accumulated in current LLM stream
+    this.lastInterruptAgentResponse = null;  // agent's partial response at interrupt time
+    this.lastInterruptUtterance     = null;  // what the caller said when interrupting
+    this.lastLang                   = 'multi'; // most recent STT language tag (starts as multi)
     this.createdAt              = Date.now();
   }
 
@@ -134,7 +152,7 @@ const MUTATION_TOOLS = new Set(['invest_money']);
 
 // Matches first-person future-action promises that should have triggered a tool call.
 // Used to detect when the LLM says it will do something but doesn't call the tool.
-const DEFERRED_ACTION_RE = /\bi('ll| will) (check|look|find|transfer|invest|apply|process|execute|look up|pull up)\b/i;
+const DEFERRED_ACTION_RE = /\bvou (realizar|fazer|investir|transferir|verificar|checar|buscar|consultar|processar|executar|aplicar)\b|\bi('ll| will) (check|look|find|transfer|invest|apply|process|execute|look up|pull up)\b|\bvoy a (realizar|hacer|invertir|verificar)\b/i;
 
 function compactHistory(messages) {
   const lines = ['Earlier in this call:'];
@@ -232,9 +250,16 @@ async function onPrompt(ws, message) {
   const userText = message.voicePrompt?.trim();
   if (!userText) { logWarn('Empty voicePrompt, skipping'); return; }
 
-  session.lastLang = message.lang || session.lastLang;
+  const detectedLang = expandLang(message.lang);
+  if (detectedLang && detectedLang !== session.lastLang) {
+    session.lastLang = detectedLang;
+    sendLogged(ws, { type: 'language', ttsLanguage: detectedLang, transcriptionLanguage: detectedLang });
+    logInfo(`Language switched → ${detectedLang}`);
+  }
 
   session.abort();
+  session.interrupted         = false;
+  session.currentStreamTokens = '';
   session.addMessage({ role: 'user', content: userText });
   const ctrl = new AbortController();
   session.abortController = ctrl;
@@ -324,9 +349,17 @@ async function onPrompt(ws, message) {
   if (session.summary)      systemMessages.push({ role: 'system', content: session.summary });
 
   // Per-turn dynamic content — always at the end to avoid invalidating the cache prefix
-  if (session.lastInterruptUtterance) {
-    systemMessages.push({ role: 'system', content: `The customer interrupted your previous response by saying: "${session.lastInterruptUtterance}". Acknowledge this naturally at the start of your reply.` });
-    session.lastInterruptUtterance = null;
+  if (session.lastInterruptUtterance || session.lastInterruptAgentResponse) {
+    let ctx = '';
+    if (session.lastInterruptAgentResponse) {
+      ctx += `You were interrupted mid-response. You had said: "${session.lastInterruptAgentResponse}". `;
+    }
+    if (session.lastInterruptUtterance) {
+      ctx += `The customer interrupted by saying: "${session.lastInterruptUtterance}". Address it naturally at the start of your reply.`;
+    }
+    systemMessages.push({ role: 'system', content: ctx.trim() });
+    session.lastInterruptUtterance    = null;
+    session.lastInterruptAgentResponse = null;
   }
   if (ragContext) systemMessages.push({ role: 'system', content: ragContext });
 
@@ -351,10 +384,13 @@ async function onPrompt(ws, message) {
         return true;
       });
 
-      // Start from the first user message to keep tool_call/tool pairs intact.
+      // Start from the first user message to keep tool_call/tool pairs intact,
+      // but preserve a leading assistant message (e.g. a generated greeting) if present.
       let historyForLLM = session.history;
       const firstUser   = historyForLLM.findIndex(m => m.role === 'user');
-      if (firstUser > 0) historyForLLM = historyForLLM.slice(firstUser);
+      if (firstUser > 0 && historyForLLM[0]?.role !== 'assistant') {
+        historyForLLM = historyForLLM.slice(firstUser);
+      }
 
       const llmStart = Date.now();
       logInfo(`LLM → request | iter ${iter} | ${systemMessages.length + historyForLLM.length} messages | ${activeTools.length} tools`);
@@ -394,7 +430,9 @@ async function onPrompt(ws, message) {
 
         const token = delta.content ?? '';
         if (token) {
+          if (session.interrupted) break;
           fullResponse += token;
+          session.currentStreamTokens = fullResponse;
           if (!firstFlushed) {
             logInfo(`LLM ← first token | ${Date.now() - llmStart}ms TTFT`);
             stopSilenceGuard(); // first word out — no more interstitials this turn
@@ -442,8 +480,21 @@ async function onPrompt(ws, message) {
             try { args = JSON.parse(tc.function.arguments); } catch { args = {}; }
             setImmediate(() => logToolCall(tc.function.name, args));
             const toolStart = Date.now();
-            const result    = await executeTool(tc.function.name, args);
-            const toolMs    = Date.now() - toolStart;
+
+            let result;
+            if (tc.function.name === 'switch_language') {
+              const lang = args.language;
+              if (lang && lang !== session.lastLang) {
+                session.lastLang = lang;
+                sendLogged(ws, { type: 'language', ttsLanguage: lang, transcriptionLanguage: lang });
+                logInfo(`Language switched via tool → ${lang}`);
+              }
+              result = { success: true, language: lang };
+            } else {
+              result = await executeTool(tc.function.name, args);
+            }
+
+            const toolMs = Date.now() - toolStart;
             setImmediate(() => logToolResult(tc.function.name, result, toolMs));
             return { tc, result };
           })
@@ -462,6 +513,7 @@ async function onPrompt(ws, message) {
           if (result._endCall) endCall = true;
         }
 
+        _deferredNudge = false; // nudge forced one tool call — restore auto tool_choice
         continue;
       }
 
@@ -505,6 +557,10 @@ function onInterrupt(ws, message) {
   const session = sessions.get(ws);
   if (!session) return;
 
+  // Capture what the agent had said before being interrupted, then stop token sends.
+  session.lastInterruptAgentResponse = session.currentStreamTokens || null;
+  session.currentStreamTokens        = '';
+  session.interrupted                = true;
   session.abort();
   session.lastInterruptUtterance = message.utteranceUntilInterrupt || null;
 
@@ -585,7 +641,7 @@ httpServer.listen(PORT, async () => {
 
   if (NGROK_DOMAIN) {
     try {
-      const listener  = await ngrok.connect({ addr: PORT, domain: NGROK_DOMAIN });
+      const listener  = await ngrok.connect({ addr: PORT, domain: NGROK_DOMAIN, authtoken: NGROK_AUTHTOKEN });
       const publicUrl = listener.url().replace('https://', 'wss://');
       process.stdout.write(`   ${D}Public:${R} ${publicUrl}\n`);
       process.stdout.write(`\n   ${B}TwiML ConversationRelay URL:${R}\n`);
