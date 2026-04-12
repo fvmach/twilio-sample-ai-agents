@@ -16,7 +16,7 @@
   "dependencies": {
     "@lancedb/lancedb": "^0.14.0",
     "apache-arrow": "^17.0.0",
-    "axios": "^1.7.9",
+    "axios": "^1.15.0",
     "cheerio": "^1.0.0",
     "dotenv": "^16.4.7",
     "openai": "^4.85.4",
